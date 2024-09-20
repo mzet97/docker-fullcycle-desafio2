@@ -4,6 +4,8 @@ services:
   nginx:
     image: nginx:latest
     container_name: nginx
+    networks: 
+      - node-network
     ports:
       - "8080:80"
     volumes:
@@ -14,6 +16,8 @@ services:
   node-app:
     build: ./node-app
     container_name: node-app
+    networks: 
+      - node-network
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_USER=root
@@ -23,12 +27,18 @@ services:
       - "3000:3000"
     volumes:
       - ./node-app:/usr/src/app
+      -  /usr/src/app/node_modules
     depends_on:
-      - mysql
+      mysql:
+        condition: service_healthy
 
   mysql:
     image: mysql:latest
+    command: --innodb-use-native-aio=0
     container_name: mysql
+    restart: always
+    networks: 
+      - node-network
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: people_db
@@ -37,10 +47,14 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   mysql_data:
-
 
 networks: 
   node-network:
